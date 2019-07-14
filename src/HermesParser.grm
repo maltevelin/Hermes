@@ -1,0 +1,168 @@
+
+%token <string*(int*int)> NUM
+%token <string*(int*int)> ID STRINGCONST
+%token <(int*int)> ADD SUB XORWITH ROL ROR
+%token <(int*int)> PLUS MINUS TIMES DIVIDE MODULO XOR BAND BOR SHIFTL SHIFTR
+%token <(int*int)> EQUAL LESS GREATER NEQ LEQ GEQ BNOT INC DEC
+%token <(int*int)> LPAR RPAR LBRACK RBRACK LBRACE RBRACE SEMICOLON COMMA
+%token <(int*int)> IF FI ELSE FROM LOOP UNTIL DO WHILE FOR EQ
+%token <(int*int)> CALL UNCALL SWAP ASSERT PRINTF SCANF EOF
+%token <(int*int)> I8 U8 I16 U16 I32 U32 I64 U64 CONST
+
+%right ELSE FI
+%left BOR
+%left XOR
+%left BAND
+%left EQUAL NEQ
+%left LESS GREATER LEQ GEQ
+%left SHIFTL SHIFTR
+%left PLUS MINUS
+%left TIMES DIVIDE MODULO
+%nonassoc UMINUS BNOT
+
+
+%start Program
+%type <Hermes.program> Program
+%type <Hermes.procedure> Procedure
+%type <Hermes.stat> Stat
+%type <Hermes.stat list> Stats
+%type <Hermes.typ -> Hermes.decl> VarSpec
+%type <Hermes.typ -> Hermes.decl list> VarSpecs
+%type <Hermes.decl> Decl
+%type <Hermes.decl list> Decls1 Decls2 Decls3
+%type <Hermes.typ> Type
+%type <Hermes.exp> Exp
+%type <Hermes.lVal> Lval
+%type <Hermes.lVal list> Lvals
+%type <Hermes.updateOp> UpdateOp
+
+%%
+
+Lval :	  ID		{ Hermes.Var $1 }
+    	| ID LBRACK Exp RBRACK
+	     		{ Hermes.Array (#1 $1, $3, $2) }
+;
+
+Lvals :			{ [] }
+	| Lval		{ [$1] }
+	| Lval COMMA Lvals
+			{ $1 :: $3 }
+;
+
+Exp :	  Lval		{ Hermes.Rval $1 }
+	| NUM		{ Hermes.Const $1 }
+	| Exp PLUS Exp	{ Hermes.Bin (Hermes.Plus, $1, $3, $2) }
+	| Exp MINUS Exp	{ Hermes.Bin (Hermes.Minus, $1, $3, $2) }
+	| Exp TIMES Exp	{ Hermes.Bin (Hermes.Times, $1, $3, $2) }
+	| Exp DIVIDE Exp
+	      	     	{ Hermes.Bin (Hermes.Divide, $1, $3, $2) }
+	| Exp MODULO Exp
+	      	     	{ Hermes.Bin (Hermes.Modulo, $1, $3, $2) }
+	| Exp XOR Exp	{ Hermes.Bin (Hermes.Xor, $1, $3, $2) }
+	| Exp BAND Exp	{ Hermes.Bin (Hermes.BAnd, $1, $3, $2) }
+	| Exp BOR Exp	{ Hermes.Bin (Hermes.BOr, $1, $3, $2) }
+	| Exp SHIFTL Exp
+	      	     	{ Hermes.Bin (Hermes.ShiftL, $1, $3, $2) }
+	| Exp SHIFTR Exp
+	      	     	{ Hermes.Bin (Hermes.ShiftR, $1, $3, $2) }
+	| Exp EQUAL Exp	{ Hermes.Bin (Hermes.Equal, $1, $3, $2) }
+	| Exp NEQ Exp	{ Hermes.Bin (Hermes.Neq, $1, $3, $2) }
+	| Exp LESS Exp	{ Hermes.Bin (Hermes.Less, $1, $3, $2) }
+	| Exp GREATER Exp
+                	{ Hermes.Bin (Hermes.Greater, $1, $3, $2) }
+	| Exp LEQ Exp	{ Hermes.Bin (Hermes.Leq, $1, $3, $2) }
+	| Exp GEQ Exp	{ Hermes.Bin (Hermes.Geq, $1, $3, $2) }
+	| MINUS Exp %prec UMINUS
+	  		{ Hermes.Un (Hermes.Uminus, $2, $1) }
+	| BNOT Exp	{ Hermes.Un (Hermes.Negate, $2, $1) }
+        | LPAR Exp RPAR	{ $2 }
+;
+
+Type :	  I8		{ Hermes.I8 }
+	| U8		{ Hermes.U8 }
+	| I16		{ Hermes.I16 }
+	| U16		{ Hermes.U16 }
+	| I32		{ Hermes.I32 }
+	| U32		{ Hermes.U32 }
+	| I64		{ Hermes.I64 }
+	| U64		{ Hermes.U64 }
+;
+
+VarSpec : ID		{ fn t => Hermes.VarDecl (#1 $1, t, #2 $1) }
+	| ID LBRACK NUM RBRACK
+			{ fn t => Hermes.ArrayDecl (#1 $1, #1 $3, t, #2 $1) }
+;
+
+VarSpecs: VarSpec	{ fn t => [$1 t] }
+	| VarSpec COMMA VarSpecs
+			{ fn t => $1 t :: $3 t }
+
+Decl :	  Type VarSpec	{ $2 $1 }
+        | CONST Type ID { Hermes.ConstParDecl (#1 $3, $2, $1) }
+        | CONST Type ID LBRACK NUM RBRACK { Hermes.ConstArrayParDecl (#1 $3, #1 $5, $2, $1) }
+;
+
+Decls1 :		{ [] }
+	| Type VarSpecs SEMICOLON Decls1
+			{ $2 $1 @ $4 }
+        | CONST Type ID EQ NUM SEMICOLON Decls1
+                        { Hermes.ConstDecl (#1 $3, #1 $5, $2, $1) :: $7}
+;
+
+Decls2 :		{ [] }
+	| Decls3	{ $1 }
+;
+
+Decls3 :  Decl		{ [$1] }
+	| Decl COMMA Decls3
+			{ $1 :: $3 }
+;
+
+UpdateOp: ADD		{ Hermes.Add }
+	| SUB		{ Hermes.Sub }
+	| XORWITH	{ Hermes.XorWith }
+	| ROL		{ Hermes.RoL }
+	| ROR		{ Hermes.RoR }
+;
+
+Stat :	  SEMICOLON	{ Hermes.Skip }
+	| Lval UpdateOp Exp SEMICOLON
+			{ Hermes.Update ($2, $1, $3, $4) }
+	| Lval INC SEMICOLON
+			{ Hermes.Inc ($1, $2) }
+	| Lval DEC SEMICOLON
+			{ Hermes.Dec ($1, $2) }
+	| IF LPAR Exp RPAR Lval UpdateOp Exp SEMICOLON
+			{ Hermes.CondUpdate ($3, $6, $5, $7, $1) }
+	| Lval SWAP Lval SEMICOLON
+			{ Hermes.Swap ($1, $3, $2) }
+	| IF LPAR Exp RPAR Lval SWAP Lval SEMICOLON
+			{ Hermes.CondSwap ($3, $5, $7, $1) }
+	| LBRACE Decls1 Stats RBRACE
+			{ Hermes.Block ($2, $3, $1) }
+	| FOR LPAR ID EQ Exp SEMICOLON Exp RPAR Stat
+			{ Hermes.For (#1 $3, $5, $7, $9, $1) }
+	| CALL ID LPAR Lvals RPAR SEMICOLON
+			{ Hermes.Call (#1 $2, $4, $1) }
+	| UNCALL ID LPAR Lvals RPAR SEMICOLON
+			{ Hermes.Uncall (#1 $2, $4, $1) }
+	| PRINTF LPAR STRINGCONST COMMA Lvals RPAR SEMICOLON
+			{ Hermes.Printf(#1 $3, $5, $1) }
+	| SCANF LPAR STRINGCONST COMMA Lvals RPAR SEMICOLON
+			{ Hermes.Scanf(#1 $3, $5, $1) }
+	| ASSERT LPAR Exp RPAR SEMICOLON
+			{ Hermes.Assert ($3, $1) }
+;
+
+Stats :			{ [] }
+	| Stat Stats	{ $1 :: $2 }
+;
+
+Procedure : ID LPAR Decls2 RPAR Stat
+			{ (#1 $1, $3, $5, $2) }
+;
+
+Program : Procedure EOF	{ [$1] }
+	| Procedure Program
+			{ $1 :: $2 }
+;
