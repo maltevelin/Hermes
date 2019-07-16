@@ -15,4 +15,4 @@ git clone git@github.com:maltevelin/Blowfish.git
 bin/hc -O Blowfish/blowfish
 ```
 The resulting C file, located in the programs directory, can be compiled using any old C compiler and executed
-backwards with the `-r` option. `-O` and `-Z` flags enable optimizations and adds annotations to C code for compilation with [Zerostack](https://github.com/lmrs2/zerostack), respectively.
+backwards with the `-r` option. `-O` and `-Z` flags enable optimizations and add annotations to C code for compilation with [Zerostack](https://github.com/lmrs2/zerostack), respectively.
