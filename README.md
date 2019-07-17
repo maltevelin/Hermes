@@ -9,7 +9,7 @@ git clone git@github.com:maltevelin/Hermes.git
 cd Hermes
 make
 ```
-Clone and compile the [Blowfish](https://github.com/maltevelin/Blowfish) implementation:
+Clone and compile [Blowfish](https://github.com/maltevelin/Blowfish):
 ```
 git clone git@github.com:maltevelin/Blowfish.git
 bin/hc -O Blowfish/blowfish
